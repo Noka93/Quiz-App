@@ -80,7 +80,7 @@ class UserServicesTest {
         ResponseEntity<UserRegistrationResponse> response = userServices.registerUser(request);
 
         Assertions.assertNotNull(response);
-        Assertions.assertEquals(200, response.getStatusCodeValue());
+        Assertions.assertEquals(200, response.getStatusCode());
         UserRegistrationResponse responseBody = response.getBody();
         Assertions.assertNotNull(responseBody);
         Assertions.assertEquals("Welcome Test User, You have successfully registered", responseBody.getMessage());

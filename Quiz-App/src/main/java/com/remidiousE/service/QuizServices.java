@@ -1,6 +1,7 @@
 package com.remidiousE.service;
 
 import com.remidiousE.dto.request.QuestionWrapper;
+import com.remidiousE.dto.request.QuizRequest;
 import com.remidiousE.model.Question;
 import com.remidiousE.model.Quiz;
 import com.remidiousE.dto.response.QuizResponse;
@@ -23,10 +24,10 @@ public class QuizServices implements QuizService {
 
     private final QuestionRepository questionRepository;
     @Override
-    public ResponseEntity<String> createQuiz(String category, String title) {
-        List<Question> questions = questionRepository.findRandomQuestionsByCategory(category);
+    public ResponseEntity<String> createQuiz(QuizRequest request) {
+        List<Question> questions = questionRepository.findRandomQuestionsByCategory(request.getCategory());
         Quiz quiz = new Quiz();
-        quiz.setTitle(title);
+        quiz.setTitle(request.getTitle());
         quiz.setQuestions(questions);
         quizRepository.save(quiz);
         return new ResponseEntity<>("Quiz created successfully", HttpStatus.CREATED);
@@ -39,7 +40,7 @@ public class QuizServices implements QuizService {
         List<Question> questionFomDB = quiz.get().getQuestions();
         List<QuestionWrapper>questionsForUsers = new ArrayList<>();
         for (Question question:questionFomDB){
-            QuestionWrapper questionWrapper = new QuestionWrapper(question.getQuestionId(), question.getQuestionTitle(), question.getOption1(), question.getOption2(), question.getOption3(), question.getOption4());
+            QuestionWrapper questionWrapper = new QuestionWrapper(question.getId(), question.getQuestionTitle(), question.getOption1(), question.getOption2(), question.getOption3(), question.getOption4());
             questionsForUsers.add(questionWrapper);
         }
         return new ResponseEntity<>(questionsForUsers, HttpStatus.OK);
@@ -47,18 +48,26 @@ public class QuizServices implements QuizService {
 
     @Override
     public ResponseEntity<Integer> calculateResult(Long id, List<QuizResponse> responses) {
-       Optional<Quiz> quiz = quizRepository.findById(id);
-        List<Question> questions = quiz.get().getQuestions();
+        Quiz quiz = quizRepository.findById(id).orElse(null);
+        if (quiz == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        List<Question> questions = quiz.getQuestions();
 
         int rightAnswer = 0;
         int i = 0;
         for (QuizResponse response : responses) {
-            if (response.getResponse() != null && response.getResponse().equals(questions.get(i).getCorrectAnswer()))
+            String userAnswer = response.getAnswer();
+            String correctAnswer = questions.get(i).getCorrectAnswer();
+
+            if (userAnswer != null && userAnswer.equals(correctAnswer)) {
                 rightAnswer++;
+            }
 
             i++;
         }
         return new ResponseEntity<>(rightAnswer, HttpStatus.OK);
     }
+
 
 }

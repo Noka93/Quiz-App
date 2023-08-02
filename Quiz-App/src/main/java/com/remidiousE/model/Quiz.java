@@ -10,10 +10,11 @@ import java.util.List;
 public class Quiz {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long quizId;
-
+    private Long id;
     private String title;
-
     @ManyToMany
     private List<Question> questions;
+
+    @OneToOne
+    User user;
 }

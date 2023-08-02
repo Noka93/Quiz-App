@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,7 +18,7 @@ import java.time.LocalDateTime;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long userId;
+    private Long id;
 
     @NotBlank(message = "Name field must not be blank")
     @Pattern(regexp = "^[A-Z][a-zA-Z]*(\\s+[A-Z][a-zA-Z]*){1,}$", message = "Please enter a valid name with first letters capitalized.")
@@ -53,4 +52,5 @@ public class User {
 
     @Column(name = "Score")
     private int score;
+
 }

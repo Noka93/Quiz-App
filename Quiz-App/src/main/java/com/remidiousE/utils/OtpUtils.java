@@ -11,10 +11,10 @@ public class OtpUtils {
     public String generateOtp(){
         Random random = new Random();
         int randomNumber = random.nextInt(999999);
-        String output = Integer.toString(randomNumber);
+        StringBuilder output = new StringBuilder(Integer.toString(randomNumber));
         while (output.length() < 6){
-            output = "0" + output;
+            output.insert(0, "0");
         }
-        return output;
+        return output.toString();
     }
 }

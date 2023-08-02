@@ -1,6 +1,7 @@
 package com.remidiousE.controller;
 
 import com.remidiousE.dto.request.QuestionWrapper;
+import com.remidiousE.dto.request.QuizRequest;
 import com.remidiousE.dto.response.QuizResponse;
 import com.remidiousE.service.QuizService;
 import jakarta.validation.Valid;
@@ -12,14 +13,15 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("quiz")
+@RequestMapping("api/v1")
+//@CrossOrigin
 public class QuizController {
 
     private final QuizService quizIService;
 
     @PostMapping("/create")
-    public ResponseEntity<String>createQuiz(@Valid @RequestBody String category, @RequestBody String title ){
-        return quizIService.createQuiz(category, title) ;
+    public ResponseEntity<String>createQuiz(@Valid @RequestBody QuizRequest request){
+        return quizIService.createQuiz(request) ;
     }
 
     @GetMapping("get-quiz/{id}")

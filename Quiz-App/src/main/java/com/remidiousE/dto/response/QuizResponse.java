@@ -7,5 +7,5 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class QuizResponse {
     private Long id;
-    private String response;
+    private String answer;
 }

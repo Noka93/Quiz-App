@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -79,7 +80,6 @@ private void ifUserAlreadyExist(String email, String username, String password){
     @Override
     public String regenerateOtp(String email) {
         User user = userRepository.findByEmail(email).orElseThrow(()-> new CustomException("User not found with this email: " + email));
-
         String otp = otpUtils.generateOtp();
         try {
             mailSender.sendOtpEmail(email, otp);
@@ -104,11 +104,22 @@ private void ifUserAlreadyExist(String email, String username, String password){
         return "Login successful";
     }
     @Override
-    public String forgotPassword(String email) {
+    public String forgotPassword(Map<String, String> request) throws MessagingException {
+        String email = request.get("email");
+        if (email == null || email.isEmpty()) {
+            throw new CustomException("Email not provided");
+        }
+
         User user = userRepository.findByEmail(email)
-                .orElseThrow(
-                        () -> new CustomException("User not found with this email:" + email));
-        return null;
+                .orElseThrow(() -> new CustomException("User not found with this email: " + email));
+
+        try {
+            mailSender.sendSetPasswordEmail(email);
+        } catch (MessagingException e) {
+            throw new RuntimeException("Unable to send set password email, please try again");
+        }
+
+        return "Please check your email to set a new password";
     }
     @Override
     public Optional<User> findUserById(Long id) throws UserNotFoundException {
