@@ -9,8 +9,6 @@ import java.util.List;
 
 public interface QuizService {
 
-//    ResponseEntity<String> createQuiz(String category, String title);
-
     ResponseEntity<String> createQuiz(QuizRequest request);
 
     ResponseEntity<List<QuestionWrapper>> getQuizQuestion(Long id) throws Exception;

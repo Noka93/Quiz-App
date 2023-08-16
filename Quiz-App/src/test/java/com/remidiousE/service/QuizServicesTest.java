@@ -1,6 +1,7 @@
 package com.remidiousE.service;
 
 import com.remidiousE.dto.request.QuestionWrapper;
+import com.remidiousE.dto.request.QuizRequest;
 import com.remidiousE.model.Question;
 import com.remidiousE.model.Quiz;
 import com.remidiousE.dto.response.QuizResponse;
@@ -45,7 +46,9 @@ class QuizServicesTest {
         Quiz quiz = new Quiz();
         when(quizRepository.save(quiz)).thenReturn(quiz);
 
-        ResponseEntity<String> response = quizServices.createQuiz(category, title);
+        QuizRequest request = new QuizRequest();
+
+        ResponseEntity<String> response = quizServices.createQuiz(request);
 
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());

@@ -1,13 +1,13 @@
-package com.remidiousE.config;
+package com.remidiousE.utils;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class MapperConfig {
-        @Bean
-        public ModelMapper modelMapper(){
-            return new ModelMapper();
-        }
+public class ModelMapperConfig {
+    @Bean
+    public ModelMapper modelMapper() {
+        return new ModelMapper();
+    }
 }

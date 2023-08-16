@@ -1,159 +1,156 @@
 package com.remidiousE.service;
 
 import com.remidiousE.dto.request.LoginRequest;
-import com.remidiousE.dto.request.UserRegistrationRequest;
+import com.remidiousE.dto.request.RegistrationRequest;
 import com.remidiousE.dto.request.UserUpdateRequest;
-import com.remidiousE.dto.response.UserRegistrationResponse;
-import com.remidiousE.exceptions.CustomException;
+import com.remidiousE.dto.response.RegistrationResponse;
+import com.remidiousE.exceptions.UserAlreadyExistsException;
 import com.remidiousE.exceptions.UserNotFoundException;
 import com.remidiousE.model.User;
+import com.remidiousE.model.VerificationToken;
 import com.remidiousE.repository.UserRepository;
-import com.remidiousE.utils.MailSender;
-import com.remidiousE.utils.OtpUtils;
-import jakarta.annotation.Resource;
-import jakarta.mail.MessagingException;
-import lombok.Data;
+import com.remidiousE.repository.VerificationTokenRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
+import java.util.Calendar;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
-@Data
-public class UserServices implements UserService {
+public class UserServices implements UserService{
 
     private final UserRepository userRepository;
+
     private final ModelMapper modelMapper;
 
-    @Autowired
-    private OtpUtils otpUtils;
+    private final PasswordEncoder passwordEncoder;
 
-    @Resource
-    private MailSender mailSender;
+    private final VerificationTokenRepository tokenRepository;
+
+    private final PasswordResetTokenServices resetTokenServices;
 
     @Override
-    public ResponseEntity<UserRegistrationResponse> registerUser(UserRegistrationRequest request) {
-        String otp = otpUtils.generateOtp();
-        ifUserAlreadyExist(request.getEmail(), request.getUsername(), request.getPassword());
-        try {
-            mailSender.sendOtpEmail(request.getEmail(), otp);
-        } catch (MessagingException e) {
-            throw new CustomException("Unable to send OTP. Please try again.");
-        }
-        User user = new User();
-        modelMapper.map(request, user);
-        user.setOtp(otp);
-        user.setOtpGeneratedTime(LocalDateTime.now());
-        User savedUser = userRepository.save(user);
-        UserRegistrationResponse response = modelMapper.map(savedUser, UserRegistrationResponse.class);
-        response.setMessage("Welcome " + savedUser.getName() + "," + " You have successfully registered");
-        return ResponseEntity.ok(response);
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
     }
-    @Override
-    public String verifyAccount(String email, String otp) {
-        User user = userRepository.findByEmail(email).orElseThrow(()-> new CustomException("User not found with this email: " + email));
-        if(user.getOtp().equals(otp) && Duration.between(user.getOtpGeneratedTime(),
-                LocalDateTime.now()).getSeconds() < (1 * 60)){
-            user.setActive(true);
-            userRepository.save(user);
-            return "OTP verified, you can now login";
-        }
-        return "Please regenerate otp and try again";
-    }
-private void ifUserAlreadyExist(String email, String username, String password){
-        Optional<User> foundUserByEmail = userRepository.findByEmail(email);
-        Optional<User>foundUserByUsername = userRepository.findUserByUsername(username);
-        Optional<User>foundUserByPassword = userRepository.findByPassword(password);
 
-       if (foundUserByEmail.isPresent())throw new CustomException("User with this email already exist");
-       if (foundUserByUsername.isPresent()) throw new CustomException("User with this username already exist");
-       if (foundUserByPassword.isPresent()) throw new CustomException("User with this password already exist");
+    @Override
+    public User registerUser(RegistrationRequest request) throws UserAlreadyExistsException {
+        Optional<User> user = userRepository.findByEmail(request.getEmail());
+        if (user.isPresent()) throw new UserAlreadyExistsException("User with email: " + request.getEmail() + " already exist");
+        var newUser = new User();
+        modelMapper.map(request, newUser);
+        newUser.setPassword(passwordEncoder.encode(request.getPassword()));
+        var savedUser = userRepository.save(newUser);
+        RegistrationResponse response = modelMapper.map(savedUser, RegistrationResponse.class);
+        return savedUser;
     }
     @Override
-    public String regenerateOtp(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(()-> new CustomException("User not found with this email: " + email));
-        String otp = otpUtils.generateOtp();
-        try {
-            mailSender.sendOtpEmail(email, otp);
-        } catch (MessagingException e) {
-            throw new CustomException("Unable to send OTP. Please try again.");
+    public Optional<User> findByEmail(String email) throws UserNotFoundException {
+        Optional<User> user = userRepository.findByEmail(email);
+        if (user.isEmpty()) throw new UserNotFoundException("User not found with " + email);
+        else{
+            return user;
         }
-        user.setOtp(otp);
-        user.setOtpGeneratedTime(LocalDateTime.now());
+    }
+    @Override
+    public void saveUserVerificationToken(User theUser, String verifyToken) {
+        var verificationToken = new VerificationToken(verifyToken, theUser);
+        tokenRepository.save(verificationToken);
+    }
+    @Override
+    public String validateToken(String verifyToken) {
+        VerificationToken token = tokenRepository.findByToken(verifyToken);
+        if (token == null){
+            return "Invalid verification token";
+        }
+        User user = token.getUser();
+        Calendar calendar = Calendar.getInstance();
+        if ((token.getExpirationTime().getTime() - calendar.getTime().getTime()) <= 0){
+//            tokenRepository.delete(token);
+            return "Verification link already expired, "+
+                    " Please, click on the link below to receive a new verification link";
+        }
+        user.setEnabled(true);
         userRepository.save(user);
-        return "Email sent... please verify account within 1 minute";
+        return "valid";
     }
+    @Override
+    public void createPasswordResetTokenForUser(User user, String passwordToken) {
+        resetTokenServices.createPasswordResetToken(user, passwordToken);
+    }
+    @Override
+    public String validatePasswordResetToken(String passwordRestToken) {
+        return resetTokenServices.validatePasswordRestToken(passwordRestToken);
+    }
+    @Override
+    public User findUserByPasswordToken(String passwordRestToken) {
+        return resetTokenServices.findUserByPasswordToken(passwordRestToken).get();
+    }
+    @Override
+    public void changePassword(User user, String newPassword) {
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    @Override
+    public boolean oldPasswordIsValid(User user, String oldPassword){
+        return passwordEncoder.matches(oldPassword, user.getPassword());
+    }
+
+    @Override
+    public VerificationToken generateNewVerificationToken(String oldToken) {
+        VerificationToken verificationToken = tokenRepository.findByToken(oldToken);
+        var verificationTokenTime = new VerificationToken();
+        verificationToken.setToken(UUID.randomUUID().toString());
+        verificationToken.setExpirationTime(verificationTokenTime.getTokenExpirationTime());
+        return tokenRepository.save(verificationToken);
+    }
+
     @Override
     public String login(LoginRequest loginRequest) {
-        User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(
-                        () -> new CustomException("User not found with this email:" + loginRequest.getEmail()));
-        if (!loginRequest.getPassword().equals(user.getPassword())){
-            return "password is incorrect";
-        }else if(!user.isActive()){
-            return "Your account is not verified";
-        }
-        return "Login successful";
+        return null;
     }
-    @Override
-    public String forgotPassword(Map<String, String> request) throws MessagingException {
-        String email = request.get("email");
-        if (email == null || email.isEmpty()) {
-            throw new CustomException("Email not provided");
-        }
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException("User not found with this email: " + email));
-
-        try {
-            mailSender.sendSetPasswordEmail(email);
-        } catch (MessagingException e) {
-            throw new RuntimeException("Unable to send set password email, please try again");
-        }
-
-        return "Please check your email to set a new password";
-    }
     @Override
     public Optional<User> findUserById(Long id) throws UserNotFoundException {
         Optional<User> foundUser = userRepository.findById(id);
         if (foundUser.isEmpty())throw new UserNotFoundException("User with " + id + " not found");
         else return foundUser;
     }
+
     @Override
     public Optional<User> findUserByUsername(String username) throws UserNotFoundException {
         Optional<User> foundUser = userRepository.findUserByUsername(username);
         if (foundUser.isEmpty())throw new UserNotFoundException("User with " + username + " not found");
         return foundUser;
     }
-    @Override
-    public List<User> findAllUsers() {
-        return userRepository.findAll();
-    }
+
     @Override
     public User updateUser(UserUpdateRequest userUpdateRequest) throws UserNotFoundException {
-        Optional<User> existingUser = userRepository.findByEmail(userUpdateRequest.getEmail());
-        if (existingUser.isEmpty())throw new UserNotFoundException("User not found");
-        User foundUser =existingUser.get();
-        if(userUpdateRequest.getName() != null && !userUpdateRequest.getName().isEmpty())
-            foundUser.setName(userUpdateRequest.getName());
+        User foundUser = new User();
+        if(userUpdateRequest.getFirstName() != null && !userUpdateRequest.getFirstName().isEmpty())
+            foundUser.setFirstName(userUpdateRequest.getFirstName());
+        if(userUpdateRequest.getLastName() != null && !userUpdateRequest.getLastName().isEmpty())
+            foundUser.setLastName(userUpdateRequest.getLastName());
         if(userUpdateRequest.getUsername() != null && !userUpdateRequest.getUsername().isEmpty())
             foundUser.setUsername(userUpdateRequest.getUsername());
         if(userUpdateRequest.getEmail() != null && !userUpdateRequest.getEmail().isEmpty())
             foundUser.setEmail(userUpdateRequest.getEmail());
         return userRepository.save(foundUser);
     }
+
     @Override
     public String deleteUser(String username) {
         userRepository.deleteByUsername(username);
         return "User has been deleted successfully";
     }
-
 }
+

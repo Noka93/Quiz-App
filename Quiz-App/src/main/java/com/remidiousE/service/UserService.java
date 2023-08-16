@@ -1,33 +1,45 @@
 package com.remidiousE.service;
 
 import com.remidiousE.dto.request.LoginRequest;
-import com.remidiousE.dto.request.UserRegistrationRequest;
+import com.remidiousE.dto.request.RegistrationRequest;
 import com.remidiousE.dto.request.UserUpdateRequest;
-import com.remidiousE.dto.response.UserRegistrationResponse;
+import com.remidiousE.exceptions.UserAlreadyExistsException;
 import com.remidiousE.exceptions.UserNotFoundException;
 import com.remidiousE.model.User;
-import jakarta.mail.MessagingException;
-import org.springframework.http.ResponseEntity;
+import com.remidiousE.model.VerificationToken;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 public interface UserService {
-    ResponseEntity<UserRegistrationResponse> registerUser(UserRegistrationRequest request);
+    List<User> getAllUsers();
 
-    String verifyAccount(String email, String otp);
+    User registerUser(RegistrationRequest request) throws UserAlreadyExistsException;
 
-    String regenerateOtp(String email);
+    Optional<User> findByEmail(String email) throws UserNotFoundException;
 
+    void saveUserVerificationToken(User theUser, String verificationToken);
+
+    String validateToken(String verifyToken);
+
+    void createPasswordResetTokenForUser(User user, String passwordToken);
+
+    String validatePasswordResetToken(String passwordRestToken);
+
+    User findUserByPasswordToken(String passwordRestToken);
+
+    void changePassword(User user, String newPassword);
+
+    boolean oldPasswordIsValid(User user, String oldPassword);
+
+    VerificationToken generateNewVerificationToken(String oldToken);
     String login(LoginRequest loginRequest);
 
-    String forgotPassword(Map<String, String> request) throws MessagingException;
-
     Optional<User> findUserById(Long id) throws UserNotFoundException;
-    Optional<User> findUserByUsername(String username) throws UserNotFoundException;
-    List<User> findAllUsers();
-    User updateUser(UserUpdateRequest userUpdateRequest) throws UserNotFoundException;
 
+    Optional<User> findUserByUsername(String username) throws UserNotFoundException;
+
+    User updateUser(UserUpdateRequest userUpdateRequest) throws UserNotFoundException;
     String deleteUser(String username);
+
 }

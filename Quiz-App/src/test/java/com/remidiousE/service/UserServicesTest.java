@@ -1,15 +1,11 @@
 package com.remidiousE.service;
 
 import com.remidiousE.dto.request.LoginRequest;
-import com.remidiousE.dto.request.UserRegistrationRequest;
+import com.remidiousE.dto.request.RegistrationRequest;
 import com.remidiousE.dto.request.UserUpdateRequest;
-import com.remidiousE.dto.response.UserRegistrationResponse;
-import com.remidiousE.exceptions.CustomException;
+import com.remidiousE.dto.response.RegistrationResponse;
 import com.remidiousE.exceptions.UserNotFoundException;
-import com.remidiousE.model.User;
 import com.remidiousE.repository.UserRepository;
-import com.remidiousE.utils.MailSender;
-import com.remidiousE.utils.OtpUtils;
 import jakarta.annotation.Resource;
 import jakarta.mail.MessagingException;
 import org.junit.jupiter.api.Assertions;
@@ -19,13 +15,14 @@ import org.mockito.Mockito;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 
@@ -59,13 +56,13 @@ class UserServicesTest {
 
     @Test
     void testRegisterUser() throws MessagingException {
-        UserRegistrationRequest request = new UserRegistrationRequest();
-        request.setEmail("test@example.com");
-        request.setName("Test User");
+        RegistrationRequest request = new RegistrationRequest();
+        request.setEmail("remy@gmail.com");
+        request.setName("remy94");
         request.setPassword("password");
 
         User savedUser = new User();
-        savedUser.setUserId(1L);
+        savedUser.setId(1L);
         savedUser.setEmail(request.getEmail());
         savedUser.setName(request.getName());
         savedUser.setPassword(request.getPassword());
@@ -74,164 +71,172 @@ class UserServicesTest {
         String otp = "123456";
         LocalDateTime otpGeneratedTime = LocalDateTime.now();
 
-        Mockito.when(otpUtils.generateOtp()).thenReturn(otp);
-        Mockito.when(userRepository.save(Mockito.any(User.class))).thenReturn(savedUser);
+        when(otpUtils.generateOtp()).thenReturn(otp);
+        when(userRepository.save(Mockito.any(User.class))).thenReturn(savedUser);
 
-        ResponseEntity<UserRegistrationResponse> response = userServices.registerUser(request);
+        ResponseEntity<RegistrationResponse> response = userServices.registerUser(request);
 
         Assertions.assertNotNull(response);
-        Assertions.assertEquals(200, response.getStatusCode());
-        UserRegistrationResponse responseBody = response.getBody();
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        RegistrationResponse responseBody = response.getBody();
         Assertions.assertNotNull(responseBody);
-        Assertions.assertEquals("Welcome Test User, You have successfully registered", responseBody.getMessage());
+        assertEquals("Welcome remy94, You have successfully registered", responseBody.getMessage());
         Assertions.assertNotNull(responseBody.getMessage());
 
-        Mockito.verify(otpUtils).generateOtp();
-        Mockito.verify(mailSender).sendOtpEmail("test@example.com", otp);
-        Mockito.verify(userRepository).save(Mockito.any(User.class));
+        verify(otpUtils).generateOtp();
+        verify(mailSender).sendOtpEmail("remy@gmail.com", otp);
+        verify(userRepository).save(Mockito.any(User.class));
     }
 
     @Test
     void testVerifyAccount() {
         User user = new User();
-        user.setEmail("test@example.com");
+        user.setEmail("remy@gmail.com");
         user.setOtp("123456");
         user.setOtpGeneratedTime(LocalDateTime.now().minusSeconds(30));
 
-        Mockito.when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.of(user));
 
-        String result = userServices.verifyAccount("test@example.com", "123456");
+        String result = userServices.verifyAccount("remy@gmail.com", "123456");
 
-        Assertions.assertEquals("OTP verified, you can now login", result);
-        Mockito.verify(userRepository).findByEmail("test@example.com");
+        assertEquals("OTP verified, you can now login", result);
+        verify(userRepository).findByEmail("remy@gmail.com");
     }
 
     @Test
     void testRegenerateOtp() throws MessagingException {
         User user = new User();
-        user.setEmail("test@example.com");
+        user.setEmail("remy@gmail.com");
         String otp = "123456";
         LocalDateTime otpGeneratedTime = LocalDateTime.now();
 
-        Mockito.when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.of(user));
-        Mockito.when(otpUtils.generateOtp()).thenReturn(otp);
+        when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.of(user));
+        when(otpUtils.generateOtp()).thenReturn(otp);
 
-        String result = userServices.regenerateOtp("test@example.com");
-        Assertions.assertEquals("Email sent... please verify account within 1 minute", result);
+        String result = userServices.regenerateOtp("remy@gmail.com");
+        assertEquals("Email sent... please verify account within 1 minute", result);
 
-        Mockito.verify(userRepository).findByEmail("test@example.com");
-        Mockito.verify(otpUtils).generateOtp();
-        Mockito.verify(mailSender).sendOtpEmail("test@example.com", otp);
-        Mockito.verify(userRepository).save(Mockito.any(User.class));
+        verify(userRepository).findByEmail("remy@gmail.com");
+        verify(otpUtils).generateOtp();
+        verify(mailSender).sendOtpEmail("remy@gmail.com", otp);
+        verify(userRepository).save(Mockito.any(User.class));
     }
 
     @Test
     void testLogin() {
         User user = new User();
-        user.setEmail("test@example.com");
+        user.setEmail("remy@gmail.com");
         user.setPassword("password");
         user.setActive(true);
 
-        Mockito.when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.of(user));
 
-        String result = userServices.login(new LoginRequest("test@example.com", "password"));
+        String result = userServices.login(new LoginRequest("remy@gmail.com", "password"));
 
-        Assertions.assertEquals("Login successful", result);
+        assertEquals("Login successful", result);
 
-        Mockito.verify(userRepository).findByEmail("test@example.com");
+        verify(userRepository).findByEmail("remy@gmail.com");
     }
 
     @Test
-    void testForgotPassword() {
-        Mockito.when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.empty());
-        String result = userServices.forgotPassword("test@example.com");
+    public void testForgotPassword() throws MessagingException {
+        String email = "remy@gmail.com";
+        User user = new User();
+        user.setEmail(email);
 
-        Assertions.assertNull(result);
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        doNothing().when(mailSender).sendSetPasswordEmail(email);
 
-        Mockito.verify(userRepository).findByEmail("test@example.com");
+        Map<String, String> request = new HashMap<>();
+        request.put("email", email);
+        String result = userServices.forgotPassword(request);
+
+        assertEquals("Please check your email to set a new password", result);
+        verify(userRepository, times(1)).findByEmail(email);
+        verify(mailSender, times(1)).sendSetPasswordEmail(email);
     }
 
     @Test
     void testFindUserById() throws UserNotFoundException {
         User user = new User();
-        user.setUserId(1L);
-        user.setName("Test User");
+        user.setId(1L);
+        user.setName("remy94");
 
-        Mockito.when(userRepository.findById(Mockito.anyLong())).thenReturn(Optional.of(user));
+        when(userRepository.findById(Mockito.anyLong())).thenReturn(Optional.of(user));
         Optional<User> result = userServices.findUserById(1L);
 
         Assertions.assertTrue(result.isPresent());
-        Assertions.assertEquals(user, result.get());
-        Mockito.verify(userRepository).findById(1L);
+        assertEquals(user, result.get());
+        verify(userRepository).findById(1L);
     }
 
     @Test
     void testFindUserByUsername() throws UserNotFoundException {
         User user = new User();
-        user.setUserId(1L);
-        user.setName("Test User");
-        user.setUsername("testuser");
+        user.setId(1L);
+        user.setName("Remidious Enefola");
+        user.setUsername("remy94");
 
-        Mockito.when(userRepository.findUserByUsername(Mockito.anyString())).thenReturn(Optional.of(user));
+        when(userRepository.findUserByUsername(Mockito.anyString())).thenReturn(Optional.of(user));
 
-        Optional<User> result = userServices.findUserByUsername("remy");
+        Optional<User> result = userServices.findUserByUsername("remy94");
 
         Assertions.assertTrue(result.isPresent());
-        Assertions.assertEquals(user, result.get());
+        assertEquals(user, result.get());
 
-        Mockito.verify(userRepository).findUserByUsername("remy");
+        verify(userRepository).findUserByUsername("remy94");
     }
 
     @Test
     void testFindAllUsers() {
         User user1 = new User();
-        user1.setUserId(1L);
-        user1.setName("Test User 1");
+        user1.setId(1L);
+        user1.setName("User 1");
 
         User user2 = new User();
-        user2.setUserId(2L);
-        user2.setName("Test User 2");
+        user2.setId(2L);
+        user2.setName("User 2");
 
-        Mockito.when(userRepository.findAll()).thenReturn(Arrays.asList(user1, user2));
+        when(userRepository.findAll()).thenReturn(Arrays.asList(user1, user2));
 
         List<User> result = userServices.findAllUsers();
 
-        Assertions.assertEquals(2, result.size());
+        assertEquals(2, result.size());
         Assertions.assertTrue(result.contains(user1));
         Assertions.assertTrue(result.contains(user2));
 
-        Mockito.verify(userRepository).findAll();
+        verify(userRepository).findAll();
     }
 
     @Test
     void testUpdateUser() throws UserNotFoundException {
         User existingUser = new User();
-        existingUser.setUserId(1L);
-        existingUser.setEmail("test@example.com");
+        existingUser.setId(1L);
+        existingUser.setEmail("remy@gmail.com");
 
         UserUpdateRequest userUpdateRequest = new UserUpdateRequest();
-        userUpdateRequest.setEmail("updated@example.com");
+        userUpdateRequest.setEmail("remi@gmail.com");
 
-        Mockito.when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.of(existingUser));
-        Mockito.when(userRepository.save(Mockito.any(User.class))).thenReturn(existingUser);
+        when(userRepository.findByEmail(Mockito.anyString())).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(Mockito.any(User.class))).thenReturn(existingUser);
 
         User result = userServices.updateUser(userUpdateRequest);
 
-        Assertions.assertEquals(existingUser, result);
-        Assertions.assertEquals(userUpdateRequest.getEmail(), result.getEmail());
+        assertEquals(existingUser, result);
+        assertEquals(userUpdateRequest.getEmail(), result.getEmail());
 
-        Mockito.verify(userRepository).findByEmail("updated@example.com");
-        Mockito.verify(userRepository).save(Mockito.any(User.class));
+        verify(userRepository).findByEmail("remi@gmail.com");
+        verify(userRepository).save(Mockito.any(User.class));
     }
 
     @Test
     void testDeleteUser() {
-        String username = "testuser";
+        String username = "remy94";
 
         String result = userServices.deleteUser(username);
 
-        Assertions.assertEquals("User has been deleted successfully", result);
+        assertEquals("User has been deleted successfully", result);
 
-        Mockito.verify(userRepository).deleteByUsername(username);
+        verify(userRepository).deleteByUsername(username);
     }
 }
